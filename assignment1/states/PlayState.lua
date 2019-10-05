@@ -17,22 +17,50 @@ PIPE_HEIGHT = 288
 BIRD_WIDTH = 38
 BIRD_HEIGHT = 24
 
-function PlayState:init()
+function PlayState:init(sounds)
     self.bird = Bird()
     self.pipePairs = {}
     self.timer = 0
     self.score = 0
+    self.timerThreshold = 2
+    self.isPaused = false
+    self.sounds = sounds
+    self.medals = {
+        ['bronze'] = love.graphics.newImage('bronze.png'),
+        ['silver'] = love.graphics.newImage('silver.png'),
+        ['gold'] = love.graphics.newImage('gold.png')
+    }
 
     -- initialize our last recorded Y value for a gap placement to base other gaps off of
     self.lastY = -PIPE_HEIGHT + math.random(80) + 20
 end
 
 function PlayState:update(dt)
+
+    -- pause the game when "p" is pressed
+    if love.keyboard.wasPressed('p') then
+        if not self.isPaused then
+            self.isPaused = true
+            scrolling = false
+            sounds['music']:pause()
+            sounds['pause']:play()
+        else 
+            self.isPaused = false
+            scrolling = true
+            sounds['resume']:play()
+            sounds['music']:play()
+        end
+    end
+
+    if self.isPaused then 
+        return
+    end
+
     -- update timer for pipe spawning
     self.timer = self.timer + dt
 
     -- spawn a new pipe pair every second and a half
-    if self.timer > 2 then
+    if self.timer > self.timerThreshold then
         -- modify the last Y coordinate we placed so pipe gaps aren't too far apart
         -- no higher than 10 pixels below the top edge of the screen,
         -- and no lower than a gap length (90 pixels) from the bottom
@@ -42,6 +70,9 @@ function PlayState:update(dt)
 
         -- add a new pipe pair at the end of the screen at our new Y
         table.insert(self.pipePairs, PipePair(y))
+
+        -- set a new timer threshold
+        self.timerThreshold = math.random(2, 4)
 
         -- reset timer
         self.timer = 0
@@ -106,10 +137,28 @@ function PlayState:render()
         pair:render()
     end
 
+    medalAwarded = ""
+    if self.score == 1 then
+        medalAwarded = "bronze"
+    elseif self.score == 2 then
+        medalAwarded = "silver"
+    elseif self.score > 2 then
+        medalAwarded = "gold"
+    end
+
+    if medalAwarded ~= "" then
+        love.graphics.draw(self.medals[medalAwarded], 148, 8)
+    end
+
     love.graphics.setFont(flappyFont)
     love.graphics.print('Score: ' .. tostring(self.score), 8, 8)
 
     self.bird:render()
+
+    if self.isPaused then
+        love.graphics.setFont(hugeFont)
+        love.graphics.printf("Paused", 0, 120, VIRTUAL_WIDTH, 'center')
+    end
 end
 
 --[[
